@@ -1,18 +1,15 @@
 //SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity ^0.8.16;
 
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 contract PANTHEON is ERC20Burnable, Ownable, ReentrancyGuard {
-    
-    /* ========== STATE VARIABLES ========== */
 
     address payable private FEE_ADDRESS;                                        
 
-    uint256 public constant MIN = 1000;                                         
-    uint256 public MAX = 1 * 10 ** 28;                                          
+    uint256 public constant MIN = 1000;                                                                               
 
     uint256 public totalEth = msg.value;
  
@@ -29,44 +26,16 @@ contract PANTHEON is ERC20Burnable, Ownable, ReentrancyGuard {
     event RedeemFeeUpdated(uint256 redeemFee);
     event MintFeeUpdated(uint256 mintFee);
 
-
-    /* ========== CONSTRUCTOR ========== */
-
     constructor() payable ERC20("Pantheon", "PANTHEON") {
         _mint(msg.sender, msg.value * MIN);
         totalEth = msg.value;
         transfer(0x000000000000000000000000000000000000dEaD, 10000);
     }
 
-
-    /* ========== SET ========== */
-
-    function setMax(uint256 _max) public onlyOwner {
-        MAX = _max;
-        emit MaxUpdated(_max);
-    }
-
     function setFeeAddress(address _address) external onlyOwner {
         require(_address != address(0x0));
         FEE_ADDRESS = payable(_address);
     }
-
-    function setRedeemFee(uint16 amount) external onlyOwner {
-        require(amount <= 969);
-        require(amount > REDEEM_FEE);
-        REDEEM_FEE = amount;
-        emit RedeemFeeUpdated(amount);
-    }
-
-    function setMintFee(uint16 amount) external onlyOwner {
-        require(amount <= 969 && amount >= 10);
-        MINT_FEE = amount;
-        emit MintFeeUpdated(amount);
-    }
-
-
-    /* ========== REDEEM ETH ========== */
-    //Burn PANTHEON to redeem your ETH
 
     function redeem(uint256 pantheon) external nonReentrant {
         require(pantheon > MIN, "must trade over min");
@@ -89,13 +58,9 @@ contract PANTHEON is ERC20Burnable, Ownable, ReentrancyGuard {
 
         emit Price(block.timestamp, pantheon, eth);
     }
-
-
-    /* ========== Mint PANTHEON ========== */
-    //Send ETH to mint PANTHEON
     
     function mint(address reciever) external payable nonReentrant {
-        require(msg.value > MIN && msg.value < MAX, "must trade over min");
+        require(msg.value > MIN, "must trade over min");
 
         // Mint Pantheon to sender
         uint256 pantheon = ETHtoPANTHEON(msg.value);
@@ -123,10 +88,6 @@ contract PANTHEON is ERC20Burnable, Ownable, ReentrancyGuard {
         require(success, "ETH Transfer failed.");
     }
 
-
-    /* ========== GET FUNCTIONS ========== */
-
-    // Get PHANTHEON Price in ETH
     function getMintPantheon(uint256 amount) external view returns (uint256) {
         return
             (amount * (totalSupply()) * (MINT_FEE)) /
@@ -145,13 +106,9 @@ contract PANTHEON is ERC20Burnable, Ownable, ReentrancyGuard {
         return totalEth;
     }
 
-    /* ========== EMERGENCY FIX TOTAL ETH FUNCTION ========== */
-
     function emergencyFixTotalEth() external onlyOwner nonReentrant {
         totalEth = address(this).balance;
     }
-
-    /* ========== Fallback ========== */
 
     receive() external payable {
         totalEth += msg.value;
