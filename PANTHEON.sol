@@ -42,7 +42,7 @@ contract PANTHEON is ERC20Burnable, Ownable2Step, ReentrancyGuard {
     }
 
     function setFeeAddress(address _address) external onlyOwner {
-        if(_address == address(0)) revert ZeroAddressNotAllowed(); 
+        assemblyOwnerNotZero(_address); 
         FEE_ADDRESS = payable(_address);
 
         emit FeeAddressUpdated(_address);
@@ -121,6 +121,15 @@ contract PANTHEON is ERC20Burnable, Ownable2Step, ReentrancyGuard {
         totalEth = address(this).balance;
 
         emit totalEthFixed(address(this).balance);
+    }
+
+    function assemblyOwnerNotZero(address _addr) public pure {
+        assembly {
+            if iszero(_addr) {
+                mstore(0x00 , "Zero address")
+                revert(0x00 , 0x20)
+            }
+        }
     }
 
     receive() external payable {
