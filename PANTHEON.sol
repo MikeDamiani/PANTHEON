@@ -38,6 +38,10 @@ contract PANTHEON is ERC20Burnable, Ownable2Step, ReentrancyGuard {
         transfer(0x000000000000000000000000000000000000dEaD, 10000);
     }
 
+    receive() external payable {
+        totalEth += msg.value;
+    }
+
     function setFeeAddress(address _address) external onlyOwner {
         assemblyOwnerNotZero(_address); 
         FEE_ADDRESS = payable(_address);
@@ -48,21 +52,17 @@ contract PANTHEON is ERC20Burnable, Ownable2Step, ReentrancyGuard {
     function redeem(uint256 pantheon) external nonReentrant {
         if(pantheon < _MIN) revert MustTradeOverMin();
 
-        // Total Eth to be sent
         uint256 eth = PANTHEONtoETH(pantheon);
 
-        // Burn of PANTHEON
+        uint256 ethToFeeAddress = eth / _FEES;
+        uint256 ethToSender = (eth * _MINT_AND_REDEEM_FEE) / _FEE_BASE_1000;
+        totalEth -= (ethToSender + ethToFeeAddress);
+
         _burn(msg.sender, pantheon);
 
-        // Payment to sender
-        uint256 ethToSender = (eth * _MINT_AND_REDEEM_FEE) / _FEE_BASE_1000;
-        sendEth(msg.sender, ethToSender);
-
-        // Team fee
-        uint256 ethToFeeAddress = eth / _FEES;
         sendEth(FEE_ADDRESS, ethToFeeAddress);
 
-        totalEth -= (ethToSender + ethToFeeAddress);
+        sendEth(msg.sender, ethToSender);
 
         emit PriceAfterRedeem(block.timestamp, pantheon, eth);
     }
@@ -70,17 +70,27 @@ contract PANTHEON is ERC20Burnable, Ownable2Step, ReentrancyGuard {
     function mint(address reciever) external payable nonReentrant {
         if(msg.value < _MIN) revert MustTradeOverMin();
 
-        // Mint Pantheon to sender
         uint256 pantheon = ETHtoPANTHEON(msg.value);
-        _mint(reciever, (pantheon * _MINT_AND_REDEEM_FEE) / _FEE_BASE_1000);
 
-        // Team fee
         uint256 ethToFeeAddress = msg.value / _FEES;
-        sendEth(FEE_ADDRESS, ethToFeeAddress);
-
         totalEth += (msg.value - ethToFeeAddress);
 
+        sendEth(FEE_ADDRESS, ethToFeeAddress);
+
+        _mint(reciever, (pantheon * _MINT_AND_REDEEM_FEE) / _FEE_BASE_1000);
+
         emit PriceAfterMint(block.timestamp, pantheon, msg.value);
+    }
+
+    function emergencyFixTotalEth() external onlyOwner {
+        totalEth = address(this).balance;
+
+        emit totalEthFixed(address(this).balance);
+    }
+
+    function sendEth(address _address, uint256 _value) internal {
+        (bool success, ) = _address.call{value: _value}("");
+        if(success != true) revert EthTransferFailed();
     }
 
     function PANTHEONtoETH(uint256 value) private view returns (uint256) {
@@ -89,11 +99,6 @@ contract PANTHEON is ERC20Burnable, Ownable2Step, ReentrancyGuard {
 
     function ETHtoPANTHEON(uint256 value) private view returns (uint256) {
         return (value * totalSupply()) / (totalEth);
-    }
-
-    function sendEth(address _address, uint256 _value) internal {
-        (bool success, ) = _address.call{value: _value}("");
-        if(success != true) revert EthTransferFailed();
     }
 
     function getMintPantheon(uint256 amount) external view returns (uint256) {
@@ -114,12 +119,6 @@ contract PANTHEON is ERC20Burnable, Ownable2Step, ReentrancyGuard {
         return totalEth;
     }
 
-    function emergencyFixTotalEth() external onlyOwner {
-        totalEth = address(this).balance;
-
-        emit totalEthFixed(address(this).balance);
-    }
-
     function assemblyOwnerNotZero(address _addr) public pure {
         assembly {
             if iszero(_addr) {
@@ -127,9 +126,5 @@ contract PANTHEON is ERC20Burnable, Ownable2Step, ReentrancyGuard {
                 revert(0x00 , 0x20)
             }
         }
-    }
-
-    receive() external payable {
-        totalEth += msg.value;
     }
 }
