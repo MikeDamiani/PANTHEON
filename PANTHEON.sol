@@ -7,6 +7,8 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.
 
 contract PANTHEON is ERC20Burnable, Ownable, ReentrancyGuard {
 
+    error ZeroAddressNotAllowed();
+    
     address payable private FEE_ADDRESS;                                        
 
     uint256 public constant MIN = 1000;                                                                               
@@ -26,9 +28,14 @@ contract PANTHEON is ERC20Burnable, Ownable, ReentrancyGuard {
     event RedeemFeeUpdated(uint256 redeemFee);
     event MintFeeUpdated(uint256 mintFee);
 
-    constructor() payable ERC20("Pantheon", "PANTHEON") {
+    constructor(address _feeAddress) payable ERC20("Pantheon", "PANTHEON") {
+        if(_feeAddress == address(0)) revert ZeroAddressNotAllowed();
+        
         _mint(msg.sender, msg.value * MIN);
         totalEth = msg.value;
+
+        FEE_ADDRESS = payable(_feeAddress);
+
         transfer(0x000000000000000000000000000000000000dEaD, 10000);
     }
 
