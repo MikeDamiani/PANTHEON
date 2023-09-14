@@ -2,10 +2,10 @@
 pragma solidity ^0.8.16;
 
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract PANTHEON is ERC20Burnable, Ownable, ReentrancyGuard {
+contract PANTHEON is ERC20Burnable, Ownable2Step, ReentrancyGuard {
 
     error ZeroAddressNotAllowed();
     
