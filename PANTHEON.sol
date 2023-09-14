@@ -13,17 +13,14 @@ contract PANTHEON is ERC20Burnable, Ownable2Step, ReentrancyGuard {
     
     address payable private FEE_ADDRESS;                                        
 
-    uint256 public constant MIN = 1000;                                                                               
+    uint256 private constant _MIN = 1000;                                                                               
 
-    uint256 public totalEth = msg.value;
+    uint256 public totalEth;
  
-    uint16 public REDEEM_FEE = 900;
-    uint16 public MINT_FEE = 900;
-    uint16 public constant FEE_BASE_1000 = 1000;
+    uint16 private constant _MINT_AND_REDEEM_FEE = 900;
+    uint16 private constant _FEE_BASE_1000 = 1000;
 
-    uint8 public constant FEES = 25;
-
-    uint128 public constant ETHinWEI = 1 * 10 ** 18;
+    uint8 private constant _FEES = 25;
 
     event PriceAfterMint(uint256 time, uint256 recieved, uint256 sent);
     event PriceAfterRedeem(uint256 time, uint256 recieved, uint256 sent);
@@ -33,7 +30,7 @@ contract PANTHEON is ERC20Burnable, Ownable2Step, ReentrancyGuard {
     constructor(address _feeAddress) payable ERC20("Pantheon", "PANTHEON") {
         if(_feeAddress == address(0)) revert ZeroAddressNotAllowed();
         
-        _mint(msg.sender, msg.value * MIN);
+        _mint(msg.sender, msg.value * _MIN);
         totalEth = msg.value;
 
         FEE_ADDRESS = payable(_feeAddress);
@@ -49,7 +46,7 @@ contract PANTHEON is ERC20Burnable, Ownable2Step, ReentrancyGuard {
     }
 
     function redeem(uint256 pantheon) external nonReentrant {
-        if(pantheon < MIN) revert MustTradeOverMin();
+        if(pantheon < _MIN) revert MustTradeOverMin();
 
         // Total Eth to be sent
         uint256 eth = PANTHEONtoETH(pantheon);
@@ -58,11 +55,11 @@ contract PANTHEON is ERC20Burnable, Ownable2Step, ReentrancyGuard {
         _burn(msg.sender, pantheon);
 
         // Payment to sender
-        uint256 ethToSender = (eth * REDEEM_FEE) / FEE_BASE_1000;
+        uint256 ethToSender = (eth * _MINT_AND_REDEEM_FEE) / _FEE_BASE_1000;
         sendEth(msg.sender, ethToSender);
 
         // Team fee
-        uint256 ethToFeeAddress = eth / FEES;
+        uint256 ethToFeeAddress = eth / _FEES;
         sendEth(FEE_ADDRESS, ethToFeeAddress);
 
         totalEth -= (ethToSender + ethToFeeAddress);
@@ -71,14 +68,14 @@ contract PANTHEON is ERC20Burnable, Ownable2Step, ReentrancyGuard {
     }
     
     function mint(address reciever) external payable nonReentrant {
-        if(msg.value < MIN) revert MustTradeOverMin();
+        if(msg.value < _MIN) revert MustTradeOverMin();
 
         // Mint Pantheon to sender
         uint256 pantheon = ETHtoPANTHEON(msg.value);
-        _mint(reciever, (pantheon * MINT_FEE) / FEE_BASE_1000);
+        _mint(reciever, (pantheon * _MINT_AND_REDEEM_FEE) / _FEE_BASE_1000);
 
         // Team fee
-        uint256 ethToFeeAddress = msg.value / FEES;
+        uint256 ethToFeeAddress = msg.value / _FEES;
         sendEth(FEE_ADDRESS, ethToFeeAddress);
 
         totalEth += (msg.value - ethToFeeAddress);
@@ -86,11 +83,11 @@ contract PANTHEON is ERC20Burnable, Ownable2Step, ReentrancyGuard {
         emit PriceAfterMint(block.timestamp, pantheon, msg.value);
     }
 
-    function PANTHEONtoETH(uint256 value) public view returns (uint256) {
+    function PANTHEONtoETH(uint256 value) private view returns (uint256) {
         return (value * totalEth) / totalSupply();
     }
 
-    function ETHtoPANTHEON(uint256 value) public view returns (uint256) {
+    function ETHtoPANTHEON(uint256 value) private view returns (uint256) {
         return (value * totalSupply()) / (totalEth);
     }
 
@@ -101,23 +98,23 @@ contract PANTHEON is ERC20Burnable, Ownable2Step, ReentrancyGuard {
 
     function getMintPantheon(uint256 amount) external view returns (uint256) {
         return
-            (amount * (totalSupply()) * (MINT_FEE)) /
+            (amount * (totalSupply()) * (_MINT_AND_REDEEM_FEE)) /
             (totalEth) /
-            (FEE_BASE_1000);
+            (_FEE_BASE_1000);
     }
 
     function getRedeemPantheon(uint256 amount) external view returns (uint256) {
         return
-            ((amount * totalEth) * (REDEEM_FEE)) /
+            ((amount * totalEth) * (_MINT_AND_REDEEM_FEE)) /
             (totalSupply()) /
-            (FEE_BASE_1000);
+            (_FEE_BASE_1000);
     }
 
     function getTotalEth() external view returns (uint256) {
         return totalEth;
     }
 
-    function emergencyFixTotalEth() external onlyOwner nonReentrant {
+    function emergencyFixTotalEth() external onlyOwner {
         totalEth = address(this).balance;
 
         emit totalEthFixed(address(this).balance);
