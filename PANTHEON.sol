@@ -8,6 +8,8 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.
 contract PANTHEON is ERC20Burnable, Ownable2Step, ReentrancyGuard {
 
     error ZeroAddressNotAllowed();
+    error MustTradeOverMin();
+    error EthTransferFailed();
     
     address payable private FEE_ADDRESS;                                        
 
@@ -40,14 +42,14 @@ contract PANTHEON is ERC20Burnable, Ownable2Step, ReentrancyGuard {
     }
 
     function setFeeAddress(address _address) external onlyOwner {
-        require(_address != address(0x0));
+        if(_address == address(0)) revert ZeroAddressNotAllowed(); 
         FEE_ADDRESS = payable(_address);
 
         emit FeeAddressUpdated(_address);
     }
 
     function redeem(uint256 pantheon) external nonReentrant {
-        require(pantheon > MIN, "must trade over min");
+        if(pantheon < MIN) revert MustTradeOverMin();
 
         // Total Eth to be sent
         uint256 eth = PANTHEONtoETH(pantheon);
@@ -69,7 +71,7 @@ contract PANTHEON is ERC20Burnable, Ownable2Step, ReentrancyGuard {
     }
     
     function mint(address reciever) external payable nonReentrant {
-        require(msg.value > MIN, "must trade over min");
+        if(msg.value < MIN) revert MustTradeOverMin();
 
         // Mint Pantheon to sender
         uint256 pantheon = ETHtoPANTHEON(msg.value);
@@ -94,7 +96,7 @@ contract PANTHEON is ERC20Burnable, Ownable2Step, ReentrancyGuard {
 
     function sendEth(address _address, uint256 _value) internal {
         (bool success, ) = _address.call{value: _value}("");
-        require(success, "ETH Transfer failed.");
+        if(success != true) revert EthTransferFailed();
     }
 
     function getMintPantheon(uint256 amount) external view returns (uint256) {
